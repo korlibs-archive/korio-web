@@ -1,0 +1,22 @@
+rootProject.name = 'korio-web-root'
+
+include(
+		'korio-ext-web-common',
+		'korio-ext-web',
+		'korio-ext-web-js',
+
+		//'korio-ext-vertx-common',
+		'korio-ext-vertx',
+		//'korio-ext-vertx-js',
+)
+
+def register(String base) {
+	findProject(":$base-common")?.projectDir = file("$base/common")
+	findProject(":$base")?.projectDir = file("$base/jvm")
+	findProject(":$base-android")?.projectDir = file("$base/android")
+	findProject(":$base-js")?.projectDir = file("$base/js")
+}
+
+register('korio-ext-web')
+register('korio-ext-vertx')
+
