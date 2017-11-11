@@ -1,10 +1,10 @@
 package com.soywiz.korio.ext.web.router
 
+import com.soywiz.kds.lmapOf
+import com.soywiz.korinject.AsyncInjector
+import com.soywiz.korinject.jvmAutomapping
 import com.soywiz.korio.async.syncTest
-import com.soywiz.korio.ds.lmapOf
 import com.soywiz.korio.ext.web.cookie.registerCookies
-import com.soywiz.korio.inject.AsyncInjector
-import com.soywiz.korio.inject.jvmAutomapping
 import com.soywiz.korio.net.http.FakeRequest
 import com.soywiz.korio.net.http.Http
 import com.soywiz.korio.net.http.HttpServer

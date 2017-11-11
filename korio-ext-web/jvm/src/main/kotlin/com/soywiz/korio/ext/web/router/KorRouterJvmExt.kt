@@ -5,8 +5,8 @@ import com.soywiz.korio.async.Promise
 import com.soywiz.korio.async.async
 import com.soywiz.korio.async.invokeSuspend
 import com.soywiz.korio.coroutine.Continuation
-import com.soywiz.korio.ds.ByteArrayBuilder
-import com.soywiz.korio.ds.lmapOf
+import com.soywiz.korio.stream.ByteArrayBuilder
+import com.soywiz.kds.lmapOf
 import com.soywiz.korio.error.InvalidOperationException
 import com.soywiz.korio.error.invalidOp
 import com.soywiz.korio.ext.web.sstatic.serveStatic

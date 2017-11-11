@@ -1,11 +1,11 @@
 package com.soywiz.korio.ext.web.cookie
 
-import com.soywiz.korio.ds.lmapOf
-import com.soywiz.korio.ds.toLinkedMap
+import com.soywiz.kds.Extra
+import com.soywiz.kds.lmapOf
+import com.soywiz.kds.toLinkedMap
 import com.soywiz.korio.ext.web.router.KorRouter
 import com.soywiz.korio.net.http.HttpDate
 import com.soywiz.korio.net.http.HttpServer
-import com.soywiz.korio.util.Extra
 
 // http://www.faqs.org/rfcs/rfc2109.html
 data class KorCookie(

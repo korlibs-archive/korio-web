@@ -1,6 +1,7 @@
 package com.soywiz.korio.ext.web.session
 
-import com.soywiz.korio.ds.lmapOf
+import com.soywiz.kds.Extra
+import com.soywiz.kds.lmapOf
 import com.soywiz.korio.ext.web.cookie.KorCookies
 import com.soywiz.korio.ext.web.cookie.cookies
 import com.soywiz.korio.ext.web.cookie.registerCookies
@@ -8,7 +9,6 @@ import com.soywiz.korio.ext.web.router.KorRouter
 import com.soywiz.korio.lang.Dynamic
 import com.soywiz.korio.net.http.HttpServer
 import com.soywiz.korio.serialization.json.Json
-import com.soywiz.korio.util.Extra
 import com.soywiz.korio.util.UUID
 
 abstract class SessionProvider {

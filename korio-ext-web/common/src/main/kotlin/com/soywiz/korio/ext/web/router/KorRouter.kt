@@ -1,11 +1,11 @@
 package com.soywiz.korio.ext.web.router
 
-import com.soywiz.korio.ds.lmapOf
-import com.soywiz.korio.inject.AsyncInjector
+import com.soywiz.kds.Extra
+import com.soywiz.kds.lmapOf
+import com.soywiz.korinject.AsyncInjector
 import com.soywiz.korio.net.http.Http
 import com.soywiz.korio.net.http.HttpServer
 import com.soywiz.korio.serialization.querystring.URLDecoder
-import com.soywiz.korio.util.Extra
 import com.soywiz.korio.util.htmlspecialchars
 
 object RoutePriority {
