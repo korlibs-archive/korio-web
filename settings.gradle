@@ -5,9 +5,7 @@ include(
 		'korio-ext-web',
 		'korio-ext-web-js',
 
-		//'korio-ext-vertx-common',
 		'korio-ext-vertx',
-		//'korio-ext-vertx-js',
 )
 
 def register(String base) {
