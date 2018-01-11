@@ -33,11 +33,11 @@ suspend fun HttpServer.Request.getParam(name: String): String? = this.getParams[
 open class KorBaseRoute(val bpath: String, val priority: Int) {
 	val matchNames = ArrayList<String>()
 	val regex = Regex(Regex.escapeReplacement(bpath)
-		.replace("*", ".*")
-		.replace(Regex(":(\\w+)")) {
-			matchNames += it.groupValues[1]
-			"([^/]+)"
-		})
+			.replace("*", ".*")
+			.replace(Regex(":(\\w+)")) {
+				matchNames += it.groupValues[1]
+				"([^/]+)"
+			})
 
 	open fun matches(req: HttpServer.BaseRequest): Boolean {
 		return regex.matches(req.path)
@@ -129,7 +129,7 @@ fun KorRouter.all(path: String, priority: Int = 0, handler: suspend (HttpServer.
 suspend fun HttpServer.router(injector: AsyncInjector = AsyncInjector(), configurer: suspend KorRouter.() -> Unit): HttpServer {
 	val router = KorRouter(injector, requestConfig)
 	router.configurer()
-	this.allHandler { router.accept(it) }
+	this.allHandler { com.soywiz.korio.async.spawnAndForget { router.accept(it) } }
 	return this
 }
 

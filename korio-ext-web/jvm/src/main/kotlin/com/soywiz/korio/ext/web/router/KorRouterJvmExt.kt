@@ -1,12 +1,9 @@
 package com.soywiz.korio.ext.web.router
 
-import com.soywiz.korio.FileNotFoundException
+import com.soywiz.kds.lmapOf
 import com.soywiz.korio.async.Promise
-import com.soywiz.korio.async.async
 import com.soywiz.korio.async.invokeSuspend
 import com.soywiz.korio.coroutine.Continuation
-import com.soywiz.korio.stream.ByteArrayBuilder
-import com.soywiz.kds.lmapOf
 import com.soywiz.korio.error.InvalidOperationException
 import com.soywiz.korio.error.invalidOp
 import com.soywiz.korio.ext.web.sstatic.serveStatic
@@ -18,6 +15,7 @@ import com.soywiz.korio.serialization.ObjectMapper
 import com.soywiz.korio.serialization.json.Json
 import com.soywiz.korio.serialization.querystring.QueryString
 import com.soywiz.korio.stream.AsyncStream
+import com.soywiz.korio.stream.ByteArrayBuilder
 import com.soywiz.korio.stream.copyTo
 import com.soywiz.korio.text.AsyncTextWriterContainer
 import com.soywiz.korio.util.Dynamic
@@ -79,156 +77,155 @@ suspend private fun registerHttpRoute(router: KorRouter, instance: Any, method: 
 			bodyHandler.resolve(Unit)
 		}
 
-		async {
-			val mapper = router.injector.getOrNull<ObjectMapper>() ?: ObjectMapper()
 
-			try {
-				bodyHandler.promise.await()
+		val mapper = router.injector.getOrNull<ObjectMapper>() ?: ObjectMapper()
 
-				if (bodyOverflow) throw RuntimeException("Too big request payload: $totalRequestSize")
+		try {
+			bodyHandler.promise.await()
 
-				//var deferred: Promise.Deferred<Any>? = null
-				val args = ArrayList<Any?>()
-				val mapArgs = lmapOf<String, String>()
-				for ((indexedParamType, annotations) in method.parameterTypes.withIndex().zip(method.parameterAnnotations)) {
-					val (index, paramType) = indexedParamType
-					val param = annotations.filterIsInstance<Param>().firstOrNull()
-					val get = annotations.filterIsInstance<Get>().firstOrNull()
-					val post = annotations.filterIsInstance<Post>().firstOrNull()
-					val header = annotations.filterIsInstance<Header>().firstOrNull()
-					val rawBody = annotations.filterIsInstance<RawBody>().firstOrNull()
-					val jsonContent = annotations.filterIsInstance<JsonContent>().firstOrNull()
-					when {
-						param != null -> {
-							args += Dynamic.dynamicCast(rreq.pathParam(param.name), paramType)
+			if (bodyOverflow) throw RuntimeException("Too big request payload: $totalRequestSize")
+
+			//var deferred: Promise.Deferred<Any>? = null
+			val args = ArrayList<Any?>()
+			val mapArgs = lmapOf<String, String>()
+			for ((indexedParamType, annotations) in method.parameterTypes.withIndex().zip(method.parameterAnnotations)) {
+				val (index, paramType) = indexedParamType
+				val param = annotations.filterIsInstance<Param>().firstOrNull()
+				val get = annotations.filterIsInstance<Get>().firstOrNull()
+				val post = annotations.filterIsInstance<Post>().firstOrNull()
+				val header = annotations.filterIsInstance<Header>().firstOrNull()
+				val rawBody = annotations.filterIsInstance<RawBody>().firstOrNull()
+				val jsonContent = annotations.filterIsInstance<JsonContent>().firstOrNull()
+				when {
+					param != null -> {
+						args += Dynamic.dynamicCast(rreq.pathParam(param.name), paramType)
+					}
+					get != null -> {
+						args += Dynamic.dynamicCast(rreq.getParam(get.name), paramType)
+					}
+					post != null -> {
+						val result = postParams[post.name]?.firstOrNull()
+						mapArgs[post.name] = result ?: ""
+						args += Dynamic.dynamicCast(result, paramType)
+					}
+					rawBody != null -> {
+						when {
+							String::class.java.isAssignableFrom(paramType) -> args += bodyContent.toString(bodyCharset)
+							ByteArray::class.java.isAssignableFrom(paramType) -> args += bodyContent.toByteArray()
+							ByteArrayBuilder::class.java.isAssignableFrom(paramType) -> args += bodyContent
+							else -> invalidOp("Annoated with RawBody but argument is not a String a ByteArray or a ByteArrayBuilder")
 						}
-						get != null -> {
-							args += Dynamic.dynamicCast(rreq.getParam(get.name), paramType)
-						}
-						post != null -> {
-							val result = postParams[post.name]?.firstOrNull()
-							mapArgs[post.name] = result ?: ""
-							args += Dynamic.dynamicCast(result, paramType)
-						}
-						rawBody != null -> {
-							when {
-								String::class.java.isAssignableFrom(paramType) -> args += bodyContent.toString(bodyCharset)
-								ByteArray::class.java.isAssignableFrom(paramType) -> args += bodyContent.toByteArray()
-								ByteArrayBuilder::class.java.isAssignableFrom(paramType) -> args += bodyContent
-								else -> invalidOp("Annoated with RawBody but argument is not a String a ByteArray or a ByteArrayBuilder")
-							}
-						}
-						jsonContent != null -> {
-							args += Dynamic.dynamicCast(jsonParam, paramType)
-						}
-						header != null -> {
-							args += Dynamic.dynamicCast(req.getHeader(header.name) ?: "", paramType)
-						}
-						Http.Auth::class.java.isAssignableFrom(paramType) -> {
-							args += Http.Auth.parse(req.getHeader("authorization") ?: "")
-						}
-						Http.Headers::class.java.isAssignableFrom(paramType) -> {
-							args += Http.Headers(headers.toList()) as Any?
-						}
-						Http.Response::class.java.isAssignableFrom(paramType) -> {
-							args += response
-						}
-						Http.Request::class.java.isAssignableFrom(paramType) -> {
-							args += request
-						}
-						HttpServer.Request::class.java.isAssignableFrom(paramType) -> {
-							args += rreq
-						}
-						Continuation::class.java.isAssignableFrom(paramType) -> {
-							//deferred = Promise.Deferred<Any>()
-							//args += deferred.toContinuation()
-						}
+					}
+					jsonContent != null -> {
+						args += Dynamic.dynamicCast(jsonParam, paramType)
+					}
+					header != null -> {
+						args += Dynamic.dynamicCast(req.getHeader(header.name) ?: "", paramType)
+					}
+					Http.Auth::class.java.isAssignableFrom(paramType) -> {
+						args += Http.Auth.parse(req.getHeader("authorization") ?: "")
+					}
+					Http.Headers::class.java.isAssignableFrom(paramType) -> {
+						args += Http.Headers(headers.toList()) as Any?
+					}
+					Http.Response::class.java.isAssignableFrom(paramType) -> {
+						args += response
+					}
+					Http.Request::class.java.isAssignableFrom(paramType) -> {
+						args += request
+					}
+					HttpServer.Request::class.java.isAssignableFrom(paramType) -> {
+						args += rreq
+					}
+					Continuation::class.java.isAssignableFrom(paramType) -> {
+						//deferred = Promise.Deferred<Any>()
+						//args += deferred.toContinuation()
+					}
+					else -> {
+						httpError(500, "Route $route expected Http.Headers type, or @Get, @Post or @Header annotation for parameter $index in method ${method.name}")
+					}
+				}
+			}
+
+			for (interceptor in router.interceptors) {
+				interceptor(req, mapArgs)
+			}
+
+			res.setStatus(200)
+			res.replaceHeader("Content-Type", route.textContentType)
+			val result = method.invokeSuspend(instance, args)
+
+			val finalResult = if (result is Promise<*>) result.await() else result
+
+			for ((k, v) in response.headers) res.addHeader(k, v)
+
+			when (finalResult) {
+				null -> res.end("")
+				is String -> res.end("$finalResult")
+				is AsyncStream -> {
+					res.replaceHeader("Content-Length", "${finalResult.size()}")
+					finalResult.copyTo(res)
+					res.close()
+				}
+				is VfsFile -> {
+					res.serveStatic(finalResult)
+				}
+			// @TODO: Korte should allow to return this interface
+				is AsyncTextWriterContainer -> {
+					// @TODO: Use chunked to avoid wasting memory!
+					val buffer = StringBuffer()
+					finalResult.write { buffer.append(it) }
+					res.end(buffer.toString())
+				}
+				is Http.HttpException -> {
+					// @TODO: add/replace headers
+					// @TODO: test this !
+					res.setStatus(finalResult.statusCode)
+					res.end(finalResult.statusText)
+				}
+				else -> {
+					res.replaceHeader("Content-Type", "application/json")
+					res.end(Json.encode(finalResult, mapper))
+				}
+			}
+		} catch (tt: Throwable) {
+			val t = when (tt) {
+				is InvocationTargetException -> tt.cause ?: tt
+				else -> tt
+			}
+
+			when (t) {
+				is Http.RedirectException -> {
+					System.err.println("Redirected: ${t.statusCode}:${t.statusText}: Location: ${t.redirectUri}")
+					res.setStatus(t.statusCode, t.statusText)
+					res.replaceHeader("Location", t.redirectUri)
+					res.end()
+				}
+				else -> {
+					tt.printStackTrace() // @TODO: Enable just in debug
+					val ft = when (t) {
+						is java.nio.file.NoSuchFileException,
+						is InvalidPathException,
+						is com.soywiz.korio.FileNotFoundException,
+						is NoSuchFileException,
+						is NoSuchElementException
+						->
+							//Http.HttpException(404, t2.message ?: "")
+							Http.HttpException(404, "404 - Not Found - ${req.path}")
+						is InvalidOperationException ->
+							Http.HttpException(400, "400 - Invalid Operation - ${req.path}")
 						else -> {
-							httpError(500, "Route $route expected Http.Headers type, or @Get, @Post or @Header annotation for parameter $index in method ${method.name}")
+							System.err.println("OtherException: ### ${req.absoluteURI} : $postParams")
+							tt.printStackTrace()
+							//Http.HttpException(500, t2.message ?: "")
+							Http.HttpException(500, "500 - Internal Server Error")
 						}
 					}
-				}
-
-				for (interceptor in router.interceptors) {
-					interceptor(req, mapArgs)
-				}
-
-				res.setStatus(200)
-				res.replaceHeader("Content-Type", route.textContentType)
-				val result = method.invokeSuspend(instance, args)
-
-				val finalResult = if (result is Promise<*>) result.await() else result
-
-				for ((k, v) in response.headers) res.addHeader(k, v)
-
-				when (finalResult) {
-					null -> res.end("")
-					is String -> res.end("$finalResult")
-					is AsyncStream -> {
-						res.replaceHeader("Content-Length", "${finalResult.size()}")
-						finalResult.copyTo(res)
-						res.close()
-					}
-					is VfsFile -> {
-						res.serveStatic(finalResult)
-					}
-				// @TODO: Korte should allow to return this interface
-					is AsyncTextWriterContainer -> {
-						// @TODO: Use chunked to avoid wasting memory!
-						val buffer = StringBuffer()
-						finalResult.write { buffer.append(it) }
-						res.end(buffer.toString())
-					}
-					is Http.HttpException -> {
-						// @TODO: add/replace headers
-						// @TODO: test this !
-						res.setStatus(finalResult.statusCode)
-						res.end(finalResult.statusText)
-					}
-					else -> {
-						res.replaceHeader("Content-Type", "application/json")
-						res.end(Json.encode(finalResult, mapper))
-					}
-				}
-			} catch (tt: Throwable) {
-				val t = when (tt) {
-					is InvocationTargetException -> tt.cause ?: tt
-					else -> tt
-				}
-
-				when (t) {
-					is Http.RedirectException -> {
-						System.err.println("Redirected: ${t.statusCode}:${t.statusText}: Location: ${t.redirectUri}")
-						res.setStatus(t.statusCode, t.statusText)
-						res.replaceHeader("Location", t.redirectUri)
-						res.end()
-					}
-					else -> {
-						tt.printStackTrace() // @TODO: Enable just in debug
-						val ft = when (t) {
-							is java.nio.file.NoSuchFileException,
-							is InvalidPathException,
-							is com.soywiz.korio.FileNotFoundException,
-							is NoSuchFileException,
-							is NoSuchElementException
-							->
-								//Http.HttpException(404, t2.message ?: "")
-								Http.HttpException(404, "404 - Not Found - ${req.path}")
-							is InvalidOperationException ->
-								Http.HttpException(400, "400 - Invalid Operation - ${req.path}")
-							else -> {
-								System.err.println("OtherException: ### ${req.absoluteURI} : $postParams")
-								tt.printStackTrace()
-								//Http.HttpException(500, t2.message ?: "")
-								Http.HttpException(500, "500 - Internal Server Error")
-							}
-						}
-						System.err.println("Http.HttpException: +++ ${ft.statusCode}:${ft.statusText} : ${req.absoluteURI} : $postParams")
-						res.setStatus(ft.statusCode, ft.statusText)
-						res.replaceHeader("Content-Type", "text/html")
-						for (header in ft.headers) res.addHeader(header.first, header.second)
-						res.end(ft.msg)
-					}
+					System.err.println("Http.HttpException: +++ ${ft.statusCode}:${ft.statusText} : ${req.absoluteURI} : $postParams")
+					res.setStatus(ft.statusCode, ft.statusText)
+					res.replaceHeader("Content-Type", "text/html")
+					for (header in ft.headers) res.addHeader(header.first, header.second)
+					res.end(ft.msg)
 				}
 			}
 		}
