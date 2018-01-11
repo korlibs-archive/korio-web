@@ -26,6 +26,7 @@ class KorRouterJvmTest {
 		//println("Accepted:")
 		//println(request.log.joinToString("\n"))
 		return request.toString()
+		//return request.let { "$method:$uri" }
 	}
 
 	@Test
